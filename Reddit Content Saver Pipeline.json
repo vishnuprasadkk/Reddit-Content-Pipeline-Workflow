@@ -1,0 +1,943 @@
+{
+  "name": "Reddit Content Saver Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "actorSource": "store",
+        "actorId": {
+          "__rl": true,
+          "value": "oAuCIx3ItNrs2okjQ",
+          "mode": "list",
+          "cachedResultName": "Reddit Scraper Lite (trudax/reddit-scraper-lite)",
+          "cachedResultUrl": "https://console.apify.com/actors/oAuCIx3ItNrs2okjQ/input"
+        },
+        "customBody": "={\n  \"debugMode\": false,\n  \"ignoreStartUrls\": false,\n  \"includeNSFW\": true,\n  \"maxComments\": 10,\n  \"maxCommunitiesCount\": 2,\n  \"maxItems\": 10,\n  \"maxPostCount\": 10,\n  \"maxUserCount\": 2,\n  \"proxy\": {\n    \"useApifyProxy\": true,\n    \"apifyProxyGroups\": [\n      \"RESIDENTIAL\"\n    ]\n  },\n  \"scrollTimeout\": 40,\n  \"searchComments\": false,\n  \"searchCommunities\": false,\n  \"searchPosts\": true,\n  \"searchUsers\": false,\n  \"skipComments\": false,\n  \"skipCommunity\": false,\n  \"skipUserPosts\": false,\n  \"sort\": \"new\",\n  \"startUrls\": [\n    {\n      \"url\": \"{{ $('Telegram Trigger').item.json.message.link_preview_options.url }}\"\n    }\n  ]\n} "
+      },
+      "type": "@apify/n8n-nodes-apify.apify",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        928
+      ],
+      "id": "da574b99-0b38-4c21-a05d-00c4591ffd29",
+      "name": "Run an Actor",
+      "credentials": {
+        "apifyApi": {
+          "id": "o7PzNIhHGVFDJxmw",
+          "name": "Apify account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Datasets",
+        "datasetId": "={{ $json.defaultDatasetId }}",
+        "options": {}
+      },
+      "type": "@apify/n8n-nodes-apify.apify",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        928
+      ],
+      "id": "a4ddb921-5780-4413-9ce9-71d557f22002",
+      "name": "Get dataset items",
+      "credentials": {
+        "apifyApi": {
+          "id": "o7PzNIhHGVFDJxmw",
+          "name": "Apify account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.all().map(i => i.json);\n\n// Helper\nfunction cleanText(text) {\n  if (!text) return '';\n  return String(text)\n    .replace(/\\s+/g, ' ')\n    .replace(/\\n+/g, ' ')\n    .trim();\n}\n\n// Try to identify post vs comments\nlet post = null;\nlet comments = [];\n\nfor (const item of input) {\n  const dataType = item.dataType || '';\n  \n  if (dataType === 'post') {\n    post = item;\n  } else if (dataType === 'comment') {\n    comments.push(item);\n  }\n}\n\n// If no explicit post found, try fallback guess\nif (!post) {\n  post = input.find(i => \n    i.title || i.postTitle || i.selftext || i.dataType === 'submission'\n  ) || null;\n}\n\n// Filter useful comments\nconst filteredComments = comments\n  .filter(c => {\n    const username = (c.username || '').toLowerCase();\n    const body = cleanText(c.body || '');\n    \n    if (!body) return false;\n    if (username === 'automoderator') return false;\n    if (body === '[deleted]' || body === '[removed]') return false;\n    if (body.length < 30) return false;\n    if (body.includes('I am a bot, and this action was performed automatically')) return false;\n    \n    return true;\n  })\n  .sort((a, b) => (b.upVotes || 0) - (a.upVotes || 0))\n  .slice(0, 10)\n  .map(c => ({\n    author: c.username || '',\n    body: cleanText(c.body || ''),\n    upvotes: c.upVotes || 0,\n    created_at: c.createdAt || '',\n    url: c.url || ''\n  }));\n\nconst result = {\n  source_url: post?.url || comments[0]?.url || '',\n  subreddit: post?.category || post?.communityName || comments[0]?.category || comments[0]?.communityName || '',\n  post_title: cleanText(post?.title || post?.postTitle || ''),\n  post_body: cleanText(post?.body || post?.selftext || post?.text || ''),\n  post_author: post?.username || post?.author || '',\n  post_created_at: post?.createdAt || '',\n  post_upvotes: post?.upVotes || post?.score || 0,\n  useful_comments: filteredComments,\n  comment_summary_text: filteredComments\n    .map((c, i) => `Comment ${i + 1} by ${c.author} (${c.upvotes} upvotes): ${c.body}`)\n    .join('\\n\\n')\n};\n\nreturn [{ json: result }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        128,
+        928
+      ],
+      "id": "bb695cf2-41c9-42ad-ab10-2c802232fef1",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "e3054f33-822a-48be-91a7-6d2c3f246197",
+              "leftValue": "={{ !!$json.post_title \n\n !!$json.post_body \n\n !!$json.comment_summary_text }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        352,
+        928
+      ],
+      "id": "efbba76f-3990-4b45-9925-54fcd1b08452",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze this Reddit post for content repurposing potential.\n\nSUBREDDIT: {{ $json.subreddit }}\nTITLE: {{ $json.post_title }}\nBODY: {{ $json.post_body }}\nAUTHOR: {{ $json.post_author }}\nDATE: {{ $json.post_created_at }}\nTOP COMMENTS: {{ $json.comment_summary_text }}\n\nReturn structured JSON with these fields:\n- title: Clean version of the post title\n- source_url: \"{{ $json.source_url }}\"\n- subreddit: \"{{ $json.subreddit }}\"\n- raw_topic: The core topic in 3-5 words\n- concise_summary: 2-3 sentence summary of the key insight\n- why_it_matters: Why this is valuable for content creation or business insight (1-2 sentences)\n- target_audience: Who would find this most valuable\n- content_opportunities: Array of content types this could become\n- hook_ideas: Array of 2-3 attention-grabbing hooks for content\n- blog_angle: One blog article angle (title + 1 sentence description)\n- carousel_angle: One carousel angle (title + slide count suggestion)\n- reel_angle: One short video angle (concept + duration suggestion)\n- linkedin_angle: One LinkedIn post angle (hook + format suggestion)\n- newsletter_angle: One newsletter angle (section title + 1 sentence)\n- confidence_score: 1-10 how useful this is as content material\n- save_priority: high, medium, or low\n- tags: Array of 3-6 topic tags",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are a content strategist and research assistant for Insight Advisory, a UAE-based corporate services firm. Your job is to analyze Reddit posts and extract structured content intelligence. Think like a smart content strategist: identify what is valuable, why it matters to a business audience, and how to repurpose it across multiple content formats. Respond ONLY with valid JSON matching the required schema. No markdown, no explanation, no wrapping."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "id": "llm-01",
+      "name": "AI: Analyze Content",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        576,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5.4",
+          "mode": "list",
+          "cachedResultName": "gpt-5.4"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        560,
+        896
+      ],
+      "id": "d8b682cd-2c12-43d9-96fb-f8981734adca",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "3rpIEfOZXWCyizKe",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"title\": \"How I Grew My SaaS to 10k MRR\",\n  \"source_url\": \"https://www.reddit.com/r/startup/comments/abc123/\",\n  \"subreddit\": \"r/startup\",\n  \"raw_topic\": \"SaaS bootstrapping growth\",\n  \"concise_summary\": \"A founder shares their journey from zero to 10k MRR.\",\n  \"why_it_matters\": \"Demonstrates a repeatable framework for early-stage growth.\",\n  \"target_audience\": \"Aspiring SaaS founders\",\n  \"content_opportunities\": [\"blog\", \"carousel\", \"linkedin_post\"],\n  \"hook_ideas\": [\"Most founders quit at month 3.\", \"The 10k MRR playbook\"],\n  \"blog_angle\": \"6 Lessons from a Bootstrapped Founder\",\n  \"carousel_angle\": \"6 Steps to 10k MRR - 8 slides\",\n  \"reel_angle\": \"The moment everything changed - 30s\",\n  \"linkedin_angle\": \"I quit my job 6 months ago.\",\n  \"newsletter_angle\": \"Founder Spotlight\",\n  \"confidence_score\": 8,\n  \"save_priority\": \"high\",\n  \"tags\": [\"SaaS\", \"growth\", \"bootstrapping\"],\n  \"duplicate_check_key\": \"reddit:startup:abc123\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        736,
+        896
+      ],
+      "id": "68685c20-a25f-489b-9277-93c4cdcf44f4",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7bfeee07-ad46-4a4b-9d35-97302470d4d9",
+              "name": "Timestamp",
+              "value": "={{ $('Code in JavaScript').item.json.post_created_at || $now }}",
+              "type": "string"
+            },
+            {
+              "id": "c86034ec-e274-45d3-b403-4d22ff9207ca",
+              "name": "source_url",
+              "value": "={{ $json.output.source_url }}",
+              "type": "string"
+            },
+            {
+              "id": "87f22da5-6db5-41ee-8d58-bdac68174187",
+              "name": "subreddit",
+              "value": "={{ $json.output.subreddit }}",
+              "type": "string"
+            },
+            {
+              "id": "17d76927-8459-48a2-a212-fb7361a2e069",
+              "name": "post_title",
+              "value": "={{ $('Code in JavaScript').item.json.post_title }}",
+              "type": "string"
+            },
+            {
+              "id": "a6251154-4a0c-48c8-b476-0554f51b3bb7",
+              "name": "summary",
+              "value": "={{ $json.output.concise_summary }}",
+              "type": "string"
+            },
+            {
+              "id": "fafea228-10c5-4257-955d-00536ae34142",
+              "name": "why_it_matters",
+              "value": "={{ $json.output.why_it_matters }}",
+              "type": "string"
+            },
+            {
+              "id": "2a7f8a2c-49b7-4536-9eed-3bafa5f7bf47",
+              "name": "output.tags",
+              "value": "={{ $json.output.tags }}",
+              "type": "array"
+            },
+            {
+              "id": "378a39ee-5dd4-4908-9141-a2717449cb7e",
+              "name": "user_note",
+              "value": "={{ $('Code in JavaScript').item.json.post_body }}",
+              "type": "string"
+            },
+            {
+              "id": "ab9b0a9a-aacc-4b3d-8751-10ad6bcf07ea",
+              "name": "hook_ideas",
+              "value": "={{ $json.output.hook_ideas }}",
+              "type": "array"
+            },
+            {
+              "id": "b9346e7b-89e4-4cf7-9c2c-79847908566c",
+              "name": "content_opportunities",
+              "value": "={{ $json.output.content_opportunities }}",
+              "type": "array"
+            },
+            {
+              "id": "e5533a62-102f-41e8-8457-e26f9bb83b2e",
+              "name": "blog_angle",
+              "value": "={{ $json.output.blog_angle }}",
+              "type": "string"
+            },
+            {
+              "id": "4eb6a9cf-8349-40c0-9600-a94169b593d5",
+              "name": "carousel_angle",
+              "value": "={{ $json.output.carousel_angle }}",
+              "type": "string"
+            },
+            {
+              "id": "81690d16-71b8-4366-9876-6a54853f82a6",
+              "name": "reel_angle",
+              "value": "={{ $json.output.reel_angle }}",
+              "type": "string"
+            },
+            {
+              "id": "e9bd3e0b-1263-41c0-9018-46ca8dfe9a5d",
+              "name": "linkedin_angle",
+              "value": "={{ $json.output.linkedin_angle }}",
+              "type": "string"
+            },
+            {
+              "id": "98233400-9eaa-474a-8c71-c46a02978392",
+              "name": "newsletter_angle",
+              "value": "={{ $json.output.newsletter_angle }}",
+              "type": "string"
+            },
+            {
+              "id": "3c106747-d274-46c5-99f9-fadc51554dd0",
+              "name": "confidence_score",
+              "value": "={{ $json.output.confidence_score }}",
+              "type": "number"
+            },
+            {
+              "id": "42378eb6-f78b-4a03-b487-e96395581d93",
+              "name": "save_priority",
+              "value": "={{ $json.output.save_priority }}",
+              "type": "string"
+            },
+            {
+              "id": "e9e2453c-22d0-456d-8c23-14e8376fc041",
+              "name": "duplicate_check_key",
+              "value": "={{ $json.output.duplicate_check_key }}",
+              "type": "string"
+            },
+            {
+              "id": "dea7a826-a7ba-42ed-92bd-f86b7d9fcd80",
+              "name": "post_author",
+              "value": "={{ $('Code in JavaScript').item.json.post_author }}",
+              "type": "string"
+            },
+            {
+              "id": "c015f0d1-5d23-45b3-b001-dc90e14d107d",
+              "name": "output.target_audience",
+              "value": "={{ $json.output.target_audience }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        928,
+        784
+      ],
+      "id": "39e76556-ef86-4595-b928-b4c034cd1efc",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1y2rvWnN7Kk4YwXkVjBdp4PhioGjMcU2kdAYsbStr_sQ",
+          "mode": "list",
+          "cachedResultName": "Content Pipeline Reddit",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1y2rvWnN7Kk4YwXkVjBdp4PhioGjMcU2kdAYsbStr_sQ/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "CONTENT PIPELINE",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1y2rvWnN7Kk4YwXkVjBdp4PhioGjMcU2kdAYsbStr_sQ/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ $now.format('yyyy-MM-dd HH:MM') }}",
+            "source_url": "={{ $json.source_url }}",
+            "subreddit": "={{ $json.subreddit }}",
+            "post_title": "={{ $json.post_title }}",
+            "summary": "={{ $json.summary }}",
+            "why_it_matters": "={{ $json.why_it_matters }}",
+            "tags": "={{ $json.output.tags }}",
+            "user_note": "={{ $json.user_note }}",
+            "hook_ideas": "={{ $json.hook_ideas }}",
+            "content_opportunities": "={{ $json.content_opportunities }}",
+            "blog_angle": "={{ $json.blog_angle }}",
+            "carousel_angle": "={{ $json.carousel_angle }}",
+            "reel_angle": "={{ $json.reel_angle }}",
+            "linkedin_angle": "={{ $json.linkedin_angle }}",
+            "newsletter_angle": "={{ $json.newsletter_angle }}",
+            "confidence_score": "={{ $json.confidence_score }}",
+            "save_priority": "={{ $json.save_priority }}",
+            "duplicate_key": "={{ $json.duplicate_check_key }}",
+            "post_author": "={{ $json.post_author }}",
+            "post_date": "={{ $json.Timestamp }}",
+            "target_audience": "={{ $json.output.target_audience }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source_url",
+              "displayName": "source_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "subreddit",
+              "displayName": "subreddit",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "post_title",
+              "displayName": "post_title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summary",
+              "displayName": "summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "why_it_matters",
+              "displayName": "why_it_matters",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tags",
+              "displayName": "tags",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "user_note",
+              "displayName": "user_note",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "hook_ideas",
+              "displayName": "hook_ideas",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "content_opportunities",
+              "displayName": "content_opportunities",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "blog_angle",
+              "displayName": "blog_angle",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "carousel_angle",
+              "displayName": "carousel_angle",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reel_angle",
+              "displayName": "reel_angle",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "linkedin_angle",
+              "displayName": "linkedin_angle",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "newsletter_angle",
+              "displayName": "newsletter_angle",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "confidence_score",
+              "displayName": "confidence_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "save_priority",
+              "displayName": "save_priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "duplicate_key",
+              "displayName": "duplicate_key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "post_author",
+              "displayName": "post_author",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "post_date",
+              "displayName": "post_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "target_audience",
+              "displayName": "target_audience",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "40ba1c61-988c-4304-aaaf-853a7b4e370a",
+      "name": "Save: Append to Pipeline1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1152,
+        784
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "pNkIz95hXmTtsG58",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1440,
+        832
+      ],
+      "id": "3a6a2742-7a5e-4644-8072-b690646586e7",
+      "name": "Telegram Trigger",
+      "webhookId": "58a86d29-d14d-46b7-ba5b-05328185c81a",
+      "credentials": {
+        "telegramApi": {
+          "id": "8fCkWl7CniULIYjX",
+          "name": "Reddit Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.message.chat.id }}",
+        "text": "Your workflow has begun! Please wait!",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -1216,
+        832
+      ],
+      "id": "16f0b04a-8fc7-47b4-aa45-e9c1e8094cbd",
+      "name": "Send a text message",
+      "webhookId": "bd7f8b8f-3983-4b20-8b44-08992af3443e",
+      "credentials": {
+        "telegramApi": {
+          "id": "8fCkWl7CniULIYjX",
+          "name": "Reddit Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "=✅ Content saved to pipeline\n\n📝 **Title:** {{ $json.post_title }}\n\n📌 **Summary:**  \n{{ $json.summary }}\n\n🔥 **Priority:** {{ $json.save_priority }}\n\n✍️ **Blog Angle:**  \n{{ $json.blog_angle }}\n\n🎠 **Carousel Angle:**  \n{{ $json.carousel_angle }}\n\n🎥 **Reel Angle:**  \n{{ $json.reel_angle }}\n\n💼 **LinkedIn Angle:**  \n{{ $json.linkedin_angle }}\n\n📩 **Newsletter Angle:**  \n{{ $json.newsletter_angle }}\n\n🎯 **Target Audience:**  \n{{ $json.target_audience }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "cc471992-3d63-4f82-8fc6-209f42746616",
+      "name": "Reply: Success Confirmation1",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1376,
+        784
+      ],
+      "webhookId": "2b1eb900-426d-467c-9986-6cfa66c6e3a8",
+      "credentials": {
+        "telegramApi": {
+          "id": "8fCkWl7CniULIYjX",
+          "name": "Reddit Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1y2rvWnN7Kk4YwXkVjBdp4PhioGjMcU2kdAYsbStr_sQ",
+          "mode": "list",
+          "cachedResultName": "Content Pipeline Reddit",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1y2rvWnN7Kk4YwXkVjBdp4PhioGjMcU2kdAYsbStr_sQ/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "CONTENT PIPELINE",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1y2rvWnN7Kk4YwXkVjBdp4PhioGjMcU2kdAYsbStr_sQ/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -992,
+        832
+      ],
+      "id": "93a7d4bb-bccd-4852-9018-fbe67ec58774",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "pNkIz95hXmTtsG58",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a4a3d999-3632-4a7d-98b2-abfd5db111ef",
+              "leftValue": "={{ $json.is_duplicate }}",
+              "rightValue": "=",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -544,
+        832
+      ],
+      "id": "5681bb3e-2c28-40fc-9dab-b7a57db7f32d",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "=You share this link previously on   {{ $('Get row(s) in sheet').item.json.timestamp }}\n\nTitle {{ $('Get row(s) in sheet').item.json.post_title }}\n\nSummary {{ $('Get row(s) in sheet').item.json.summary }}\n\nPlease check gsheets\n\nhttps://docs.google.com/spreadsheets/d/1y2rvWnN7Kk4YwXkVjBdp4PhioGjMcU2kdAYsbStr_sQ",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -320,
+        704
+      ],
+      "id": "c6a7a037-b8b7-4226-b2db-06710aa88c2d",
+      "name": "Send a text message1",
+      "webhookId": "bd7f8b8f-3983-4b20-8b44-08992af3443e",
+      "credentials": {
+        "telegramApi": {
+          "id": "8fCkWl7CniULIYjX",
+          "name": "Reddit Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all rows from Google Sheets input\nconst sheetRows = $input.all();\n\n// Get the Telegram message text\nconst telegramText = $('Telegram Trigger').item.json.message.text || '';\n\n// Extract first Reddit URL from Telegram text\nconst redditUrlMatch = telegramText.match(/https?:\\/\\/(?:www\\.)?reddit\\.com\\/[^\\s]+/i);\n\nif (!redditUrlMatch) {\n  return [\n    {\n      json: {\n        is_duplicate: false,\n        error: 'No Reddit URL found in Telegram message',\n        incoming_url: '',\n        normalized_incoming_url: '',\n        matched_row: null\n      }\n    }\n  ];\n}\n\nconst incomingUrl = redditUrlMatch[0];\n\n// Normalize URL function\nfunction normalizeUrl(url) {\n  if (!url) return '';\n  \n  try {\n    const u = new URL(url.trim());\n\n    // force hostname lowercase and remove www\n    let hostname = u.hostname.toLowerCase().replace(/^www\\./, '');\n\n    // clean pathname\n    let pathname = u.pathname\n      .replace(/\\/+$/, '') // remove trailing slash\n      .toLowerCase();\n\n    return `${hostname}${pathname}`;\n  } catch (e) {\n    return url.trim().toLowerCase().replace(/^https?:\\/\\//, '').replace(/^www\\./, '').replace(/\\/+$/, '');\n  }\n}\n\nconst normalizedIncomingUrl = normalizeUrl(incomingUrl);\n\n// Look for match in Google Sheet rows\nlet matchedRow = null;\n\nfor (const row of sheetRows) {\n  const sheetUrl = row.json.source_url || '';\n  const normalizedSheetUrl = normalizeUrl(sheetUrl);\n\n  if (normalizedSheetUrl === normalizedIncomingUrl) {\n    matchedRow = row.json;\n    break;\n  }\n}\n\n// Return result\nreturn [\n  {\n    json: {\n      is_duplicate: !!matchedRow,\n      incoming_url: incomingUrl,\n      normalized_incoming_url: normalizedIncomingUrl,\n      matched_row: matchedRow\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -768,
+        832
+      ],
+      "id": "10fd9c04-0096-4a70-a04a-e5c9eb9ab7ab",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "No content found inside the link",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "4cae6e8f-4ea9-4024-abeb-ed7cbac5abd4",
+      "name": "Reply: Empty Post Content",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        640,
+        1072
+      ],
+      "webhookId": "bc50af3d-483b-4836-8e07-1425cf16b892",
+      "credentials": {
+        "telegramApi": {
+          "id": "8fCkWl7CniULIYjX",
+          "name": "Reddit Bot"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Run an Actor": {
+      "main": [
+        [
+          {
+            "node": "Get dataset items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get dataset items": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "AI: Analyze Content",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reply: Empty Post Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: Analyze Content": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI: Analyze Content",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI: Analyze Content",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Save: Append to Pipeline1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save: Append to Pipeline1": {
+      "main": [
+        [
+          {
+            "node": "Reply: Success Confirmation1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Run an Actor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timezone": "Asia/Dubai",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "Vwifa003dTXHSH1G"
+  },
+  "versionId": "95150eb2-bb77-4ca1-9580-2c2c6c1c4148",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7fb239355466912e604e05e3b88a89ed69e2f35f0df867e7033c58c579a6ce27"
+  },
+  "id": "MYh634XHbauUJ3mO",
+  "tags": []
+}
