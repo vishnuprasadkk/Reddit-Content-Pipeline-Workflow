@@ -39,6 +39,8 @@ Immediately sends a typing indicator back to the user so they know the bot recei
 ### 3. Get row(s) in sheet
 Fetches all previously processed Reddit URLs from the Google Sheets pipeline log. This is the source of truth for duplicate detection.
 
+Template: https://docs.google.com/spreadsheets/d/1Q0F7Th6cdiqYKJIPwx_G0td59QkRMjNJMxpU3xOVGMU/edit?usp=sharing
+
 ### 4. Dedup Check *(Code Node)*
 Extracts the Reddit URL from the Telegram message using regex, then normalizes both the incoming URL and all stored URLs (strips `www.`, lowercases, removes trailing slashes) before comparing. Sets an `is_duplicate` flag.
 
