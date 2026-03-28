@@ -51,7 +51,7 @@ Extracts the Reddit URL from the Telegram message using regex, then normalizes b
 | New link | Continues to Apify scraping |
 
 ### 6. Reddit Scrape *(Apify — Reddit Scraper Lite)*
-Runs the [`trudax/reddit-scraper-lite`](https://console.apify.com/actors/oAuCIx3ItNrs2okjQ) actor against the Reddit URL. Scrapes the post and up to 10 comments using a residential proxy.
+Runs the [`trudax/reddit-scraper-lite`](https://console.apify.com/actors/oAuCIx3ItNrs2okjQ) actor against the Reddit URL. Scrapes the post and up to top 10 comments using a residential proxy.
 
 ### 7. Get Dataset Items
 Retrieves the results from the completed Apify actor run.
