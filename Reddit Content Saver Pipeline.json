@@ -16,8 +16,8 @@
       "type": "@apify/n8n-nodes-apify.apify",
       "typeVersion": 1,
       "position": [
-        -320,
-        928
+        -256,
+        880
       ],
       "id": "da574b99-0b38-4c21-a05d-00c4591ffd29",
       "name": "Run an Actor",
@@ -37,8 +37,8 @@
       "type": "@apify/n8n-nodes-apify.apify",
       "typeVersion": 1,
       "position": [
-        -96,
-        928
+        -64,
+        880
       ],
       "id": "a4ddb921-5780-4413-9ce9-71d557f22002",
       "name": "Get dataset items",
@@ -57,7 +57,7 @@
       "typeVersion": 2,
       "position": [
         128,
-        928
+        880
       ],
       "id": "bb695cf2-41c9-42ad-ab10-2c802232fef1",
       "name": "Code in JavaScript"
@@ -90,8 +90,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        352,
-        928
+        480,
+        880
       ],
       "id": "efbba76f-3990-4b45-9925-54fcd1b08452",
       "name": "If"
@@ -115,8 +115,8 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        576,
-        672
+        864,
+        720
       ]
     },
     {
@@ -133,7 +133,7 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        560,
+        832,
         896
       ],
       "id": "d8b682cd-2c12-43d9-96fb-f8981734adca",
@@ -152,7 +152,7 @@
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
       "position": [
-        736,
+        1056,
         896
       ],
       "id": "68685c20-a25f-489b-9277-93c4cdcf44f4",
@@ -289,8 +289,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        928,
-        784
+        1296,
+        720
       ],
       "id": "39e76556-ef86-4595-b928-b4c034cd1efc",
       "name": "Edit Fields"
@@ -539,8 +539,8 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        1152,
-        784
+        1520,
+        720
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
@@ -560,7 +560,7 @@
       "typeVersion": 1.2,
       "position": [
         -1440,
-        832
+        864
       ],
       "id": "3a6a2742-7a5e-4644-8072-b690646586e7",
       "name": "Telegram Trigger",
@@ -584,7 +584,7 @@
       "typeVersion": 1.2,
       "position": [
         -1216,
-        832
+        864
       ],
       "id": "16f0b04a-8fc7-47b4-aa45-e9c1e8094cbd",
       "name": "Send a text message",
@@ -609,8 +609,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1376,
-        784
+        1744,
+        720
       ],
       "webhookId": "2b1eb900-426d-467c-9986-6cfa66c6e3a8",
       "credentials": {
@@ -641,8 +641,8 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        -992,
-        832
+        -864,
+        864
       ],
       "id": "93a7d4bb-bccd-4852-9018-fbe67ec58774",
       "name": "Get row(s) in sheet",
@@ -681,8 +681,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -544,
-        832
+        -496,
+        864
       ],
       "id": "5681bb3e-2c28-40fc-9dab-b7a57db7f32d",
       "name": "If1"
@@ -699,8 +699,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        -320,
-        704
+        -240,
+        720
       ],
       "id": "c6a7a037-b8b7-4226-b2db-06710aa88c2d",
       "name": "Send a text message1",
@@ -719,8 +719,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -768,
-        832
+        -688,
+        864
       ],
       "id": "10fd9c04-0096-4a70-a04a-e5c9eb9ab7ab",
       "name": "Code in JavaScript1"
@@ -738,8 +738,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        640,
-        1072
+        864,
+        1152
       ],
       "webhookId": "bc50af3d-483b-4836-8e07-1425cf16b892",
       "credentials": {
@@ -748,6 +748,118 @@
           "name": "Reddit Bot"
         }
       }
+    },
+    {
+      "parameters": {
+        "content": "## Reddit Content Saver Pipeline\nReceives a Reddit URL via Telegram → deduplicates against Google Sheets → scrapes post with Apify → validates content → analyzes with GPT → saves structured data to Sheets → confirms via Telegram.",
+        "height": 974,
+        "width": 3536,
+        "color": 4
+      },
+      "id": "sticky-overview",
+      "name": "Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1520,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### Step 1 — Trigger & Acknowledge\n**Telegram Trigger** listens for messages in the bot chat.\n\n**Send a text message** immediately replies with an acknowledgment so the user knows the pipeline started.\n\n> Trigger data: `$json.message.link_preview_options.url`",
+        "height": 444,
+        "width": 412,
+        "color": 3
+      },
+      "id": "sticky-trigger",
+      "name": "Note: Trigger",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1472,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### Step 2 — Duplicate Check\n**Get row(s) in sheet** reads all saved URLs from Google Sheets.\n\n**Code in JavaScript1** extracts the submitted URL and checks if it already exists in the sheet data.\n\n**If1** branches:\n- ✅ True (already saved) → notify user via Telegram and stop\n- ❌ False (new post) → proceed to scraping",
+        "height": 444,
+        "width": 620,
+        "color": 5
+      },
+      "id": "sticky-dedup",
+      "name": "Note: Dedup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -960,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### Step 3 — Reddit Scraping\n**Run an Actor** triggers Apify's `trudax/reddit-scraper-lite` with the submitted URL (max 10 posts, residential proxy, sort=new).\n\n**Get dataset items** polls and fetches the completed dataset.\n\n**Code in JavaScript** normalises the raw Apify output — extracts title, body, selftext, score, comment count, author, and post URL into a clean object.",
+        "height": 524,
+        "width": 640,
+        "color": 6
+      },
+      "id": "sticky-scrape",
+      "name": "Note: Scraping",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### Step 4 — Content Check\n**If** verifies the scraped post has non-empty body text.\n\n- ✅ Has content → AI analysis\n- ❌ Empty → **Reply: Empty Post Content** notifies user and stops",
+        "height": 492,
+        "width": 230,
+        "color": 5
+      },
+      "id": "sticky-validate",
+      "name": "Note: Validate",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### Step 5 — AI Content Intelligence\n**AI: Analyze Content** (LangChain LLM Chain) sends post title + body to GPT-4o.\n\n**Structured Output Parser** enforces a JSON schema response:\n- `topic` — primary subject\n- `summary` — 2-3 sentence summary\n- `content_type` — e.g. discussion, tutorial, news\n- `sentiment` — positive / neutral / negative\n- `key_insights[]` — bullet takeaways\n- `relevance_score` — 0–10",
+        "height": 588,
+        "width": 480,
+        "color": 2
+      },
+      "id": "sticky-ai",
+      "name": "Note: AI Analysis",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        704,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### Step 6 — Save & Confirm\n**Edit Fields** maps AI output + post metadata to the Google Sheets column schema (URL, title, topic, summary, sentiment, relevance_score, saved_at timestamp).\n\n**Save: Append to Pipeline1** appends a new row to the content pipeline tracker sheet.\n\n**Reply: Success Confirmation1** sends a Telegram message with the post title, topic, and relevance score.\n\n> ⚠️ Sheet ID must be updated in Google Sheets nodes before use.",
+        "height": 588,
+        "width": 640,
+        "color": 3
+      },
+      "id": "sticky-output",
+      "name": "Note: Save & Notify",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1216,
+        448
+      ]
     }
   ],
   "pinData": {},
@@ -933,7 +1045,7 @@
     "timeSavedMode": "fixed",
     "errorWorkflow": "Vwifa003dTXHSH1G"
   },
-  "versionId": "95150eb2-bb77-4ca1-9580-2c2c6c1c4148",
+  "versionId": "c45380e6-d6f1-4ac5-9f14-deab152393b9",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "7fb239355466912e604e05e3b88a89ed69e2f35f0df867e7033c58c579a6ce27"
